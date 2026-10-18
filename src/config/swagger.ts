@@ -8,6 +8,10 @@ export const swaggerDocument = {
     },
     servers: [
         {
+            url: 'https://api-fundamentos-backend.onrender.com',
+            description: 'Servidor de Producción (Render)',
+        },
+        {
             url: 'http://localhost:3000',
             description: 'Servidor Local de Desarrollo',
         },
