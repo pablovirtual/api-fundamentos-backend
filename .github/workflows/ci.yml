@@ -1,0 +1,61 @@
+name: Integración Continua (CI)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-build:
+    name: Pruebas y Compilación
+    runs-on: ubuntu-latest
+
+    # Servicio de PostgreSQL en memoria para ejecutar tests aislados en el runner
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      API_KEY: ${{ secrets.API_KEY || 'token-secreto-fullstack' }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'jwt_secret_ci_testing_key_1234567890' }}
+      # Usa el secret si existe, de lo contrario apunta a la base de datos de prueba del servicio
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://test_user:test_password@localhost:5432/test_db?schema=public' }}
+
+    steps:
+      - name: 1. Descargar el repositorio (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias
+        run: npm ci
+
+      - name: 4. Generar Prisma Client
+        run: npx prisma generate
+
+      - name: 5. Sincronizar esquema de Base de Datos
+        run: npx prisma db push --skip-generate
+
+      - name: 6. Compilar TypeScript
+        run: npm run build
+
+      - name: 7. Ejecutar suite de pruebas (Vitest + Supertest)
+        run: npm test
